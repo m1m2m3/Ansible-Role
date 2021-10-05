@@ -1,0 +1,25 @@
+---
+- name: check if svc_ansible user already exists (for purpose of idempotent)
+  shell:
+    cmd: "id -u svc_qualys"
+  ignore_errors: true
+  register: check_qualys_user
+  
+- name: create system account for user "svc_qualys" for ansible stuff
+  shell: |
+    useradd -r -d /home/svc_qualys -G wheel -s /bin/bash svc_qualys \
+    && mkdir -p /home/svc_qualys/.ssh \
+    && chown -R svc_qualys:svc_qualys /home/svc_qualys \
+    && chmod 700 /home/svc_qualys/.ssh \
+    && echo "svc_qualys ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers.d/svc_qualys
+  when: check_qualys_user.rc == 1   
+  
+- name: svc_qualys authorized_key
+  authorized_key:
+    user: svc_qualys
+    key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCxzauvsYBuKJMV5J5iT7XFGcUYHLfyKN6AU086xRfzvR89/ToncPmaKCVJsj+XELmm72E6JrW2mV9Put6RpgnSAr+uNYFMZeAGMGsGJqvy2m1EZ/pvyVYkWNyDdNck8PdrPhcFJMwk6ly4gUxXjdRLafUd9mDIDuATfNJNG4bw29jghn+YdFPX7HRLrmRoQm011V6xXR4BoQvRkwHDy2PokSv2UJkI4dpFJ4vYx1NlDbGkemj50ferZHZ3dLBJ2VKfa9r+is0GanAwnhPOqcYSg2ykVAlxkP0ImLSQmLJS43cv5VUyKRmo7fPHBER+GYWlrFc8YXkr3m9ZFQoEVweb root@usflo-tcx-twr0"
+   # key_options: 'restrict,from="10.124.9.11,10.124.9.12"'
+    comment: "svc_qualys"
+    state: present
+    exclusive: yes
+  when: check_qualys_user.rc == 1      

@@ -1,0 +1,17 @@
+---
+- name: "ensure write permission is being disabled at last"
+  command: /bin/true
+  notify: make grub read only
+- name: copy custom /etc/hosts
+  copy:
+    src: files/etc/hosts
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: 0644
+#- name: debug hostname
+#  debug: var=vm_name
+#- name: set hostname
+#  hostname:
+#    name: "{{vm_name}}"  
+  

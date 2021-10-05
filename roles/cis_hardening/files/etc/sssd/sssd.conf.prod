@@ -1,0 +1,50 @@
+[sssd]
+ config_file_version = 2
+ domains = eppc.prod.local
+ services = nss, pam
+ debug_level = 0
+
+[nss]
+ filter_users = root,localmin,lxd,libvirt-qemu,libvirt-dnsmasq
+ filter_groups = root,localmin,lxd,kvm,libvirtd
+ debug_level = 0
+
+[pam]
+
+[domain/EPPC.PROD.LOCAL]
+ debug_level = 0
+ id_provider = ldap
+ auth_provider = krb5
+ chpass_provider = krb5
+ access_provider = ldap
+ ldap_referrals = false
+ enumerate = true
+
+ ldap_id_use_start_tls = true
+ ldap_uri = ldaps://pwfloeppcdc001.eppc.prod.local, ldaps://pwfloeppcdc002.eppc.prod.local
+ use_fully_qualified_names = false
+
+ ldap_use_tokengroups = false
+ ldap_id_mapping = false
+
+ ldap_sasl_mech = GSSAPI
+
+ ldap_schema = ad
+
+ ldap_user_search_base = ou=Accounts,dc=eppc,dc=prod,dc=local
+ ldap_user_object_class = user
+
+ ldap_group_search_base = ou=Groups,dc=eppc,dc=prod,dc=local
+ ldap_group_object_class = group
+
+ ldap_user_home_directory = unixHomeDirectory
+ ldap_user_principal = userPrincipalName
+
+ ldap_access_filter = memberOf=cn=g.linux_admins.prod,ou=rolebasedadministration,ou=groups,dc=eppc,dc=prod,dc=local
+ ldap_access_order = filter,expire
+
+ ldap_account_expire_policy = ad
+ ldap_force_upper_case_realm = true
+
+ krb5_realm = EPPC.PROD.LOCAL
+ krb5_server = pwfloeppcdc001.eppc.prod.local, pwfloeppcdc002.eppc.prod.local

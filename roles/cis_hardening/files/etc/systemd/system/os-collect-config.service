@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect metadata and run hook commands.
+[Service]
+ExecStart=/usr/bin/os-collect-config
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target

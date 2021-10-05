@@ -1,0 +1,112 @@
+---
+# handlers file for RHEL7-CIS
+
+- name: sysctl flush ipv4 route table
+  sysctl:
+      name: net.ipv4.route.flush
+      value: 1
+      sysctl_set: yes
+  when: ansible_virtualization_type != "docker"
+  become: true
+  become_user: root
+
+- name: sysctl flush ipv6 route table
+  sysctl:
+      name: net.ipv6.route.flush
+      value: 1
+      sysctl_set: yes
+  when: ansible_virtualization_type != "docker"
+  become: true
+  become_user: root
+
+- name: systemd restart tmp.mount
+  systemd:
+      name: tmp.mount
+      daemon_reload: yes
+      enabled: yes
+      masked: no
+      state: reloaded
+  become: true
+  become_user: root
+
+- name: generate new grub config
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  become: true
+  become_user: root
+
+- name: restart firewalld
+  service:
+      name: firewalld
+      state: restarted
+  become: true
+  become_user: root
+
+- name: restart xinetd
+  service:
+      name: xinetd
+      state: restarted
+  become: true
+  become_user: root
+
+- name: restart sshd
+  service:
+      name: sshd
+      state: restarted
+  become: true
+  become_user: root
+
+- name: remove ssh_host_keys
+  shell: rm -f /etc/ssh/ssh_host_*
+  become: true
+  become_user: root
+
+- name: reload dconf
+  become: yes
+  command: dconf update
+
+- name: restart chrony
+  service:
+      name: chrony
+      state: restarted
+  become: true
+  become_user: root
+
+# handler to update ca certs
+- name: update trusted vapdevca
+  shell: update-ca-trust extract
+  become: true
+  become_user: root
+
+# handler to remove axon-deb installer package
+- name: rm-axon-agent-installer-linux-x64.rpm
+  shell: rm -f /home/localmin/axon-agent-installer-linux-x64.rpm
+  become: true
+  become_user: root
+
+# handler to remove tanium .deb installer package
+- name: rm-TaniumClient-6.0.314.1579_1.rhe7-1.x86_64.rpm
+  shell : rm -f /home/localmin/TaniumClient-6.0.314.1579_1.rhe7-1.x86_64.rpm
+  become: true
+  become_user: root
+
+# restart auditd
+- name: restart auditd
+  service:
+      name: auditd
+      state: restarted
+      use: service
+  become: true
+  become_user: root
+
+# restart rsyslog
+- name: restart rsyslog
+  service:
+      name: rsyslog
+      state: restarted
+  become: true
+  become_user: root
+  
+- name: make grub read only
+  shell: sed -i -e '/boot/ s/defaults/defaults,ro/' /etc/fstab
+  become: true
+  become_user: root

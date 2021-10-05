@@ -1,0 +1,1 @@
+To install all agents required copy all agents role into this role with 'agent_' prefix, refer agents from --> https://github.devops.worldpay.local/robops/image_factory_service/blob/hm-dev/roles/requirements.yml

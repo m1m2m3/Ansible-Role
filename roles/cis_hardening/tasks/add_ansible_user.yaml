@@ -1,0 +1,26 @@
+---
+# to add more accounts like this either remove '-r: used for system account' in code below, or list new account also in https://github.devops.worldpay.local/robops/Image_factory_linux_playbooks/blob/hm-dev/roles/cis_hardening/tasks/cis_hardening_section_5.yaml#L399 as we are desibling login into all system accounts except listed ones
+- name: check if svc_ansible user already exists (for purpose of idempotent)
+  shell:
+    cmd: "id -u svc_ansible"
+  ignore_errors: true
+  register: check_ansible_user
+  
+- name: create system account for user "svc_ansible" for ansible stuff
+  shell: |
+    useradd -r -d /home/svc_ansible -G wheel -s /bin/bash svc_ansible \
+    && mkdir -p /home/svc_ansible/.ssh \
+    && chown -R svc_ansible:svc_ansible /home/svc_ansible \
+    && chmod 700 /home/svc_ansible/.ssh \
+    && echo "svc_ansible ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers.d/svc_ansible
+  when: check_ansible_user.rc == 1 
+  
+- name: svc_ansible authorized_key
+  authorized_key:
+    user: svc_ansible
+    key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7hipUSqXLMx2n6X0ZruOmfnx0WZOJXLIqYGAou2ByiDq9ikiJLEq7rHSUZQ76W7NskCYIY2dRc98IRLh3zgv0qle7V2HnhU+sjmVIafZkjSToxuzVea6vt/mWTQzx3gINi9lusPr/2icWzCkbTqCAvhYyvBSMl8vqOT2blWQSeWHEjwJF38CzNJq7+xVygqxvrLo7TnpZ6y5TRVecN1iR1Q/mEbxL9MxkhTzMhQ3DOxzKruY+RZyIjVpZCnvmu6V6VYGKLUeTvUXNPqbQgpsP+MRN5/Eje92mbU+WuUY8gRBP27fklAd/19EuHuHbX0crxqCevFNzFQiquQlxSnFB root@usflo-tcx-twr0"
+   # key_options: 'restrict,from="10.124.9.11,10.124.9.12"'
+    comment: "svc_ansible"
+    state: present
+    exclusive: yes
+  when: check_ansible_user.rc == 1    

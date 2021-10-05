@@ -1,0 +1,540 @@
+#- name: "NOTSCORED | 6.1.1 | PATCH | Audit system file permissions"
+#-  command: /bin/true
+#-  changed_when: no
+#-  become: true
+#-  become_user: root
+
+- name: "SCORED | 6.1.2 | PATCH | Ensure permissions on /etc/passwd are configured"
+  file:
+      dest: /etc/passwd
+      owner: root
+      group: root
+      mode: 0644
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.3 | PATCH | Ensure permissions on /etc/shadow are configured"
+  file:
+      dest: /etc/shadow
+      owner: root
+      group: root
+      mode: 0000
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.4 | PATCH | Ensure permissions on /etc/group are configured"
+  file:
+      dest: /etc/group
+      owner: root
+      group: root
+      mode: 0644
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.5 | PATCH | Ensure permissions on /etc/gshadow are configured"
+  file:
+      dest: /etc/gshadow
+      owner: root
+      group: root
+      mode: 0000
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.6 | PATCH | Ensure permissions on /etc/passwd- are configured"
+  file:
+      dest: /etc/passwd-
+      owner: root
+      group: root
+      mode: 0600
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.7 | PATCH | Ensure permissions on /etc/shadow- are configured"
+  file:
+      dest: /etc/shadow-
+      owner: root
+      group: root
+      mode: 0000
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.8 | PATCH | Ensure permissions on /etc/group- are configured"
+  file:
+      dest: /etc/group-
+      owner: root
+      group: root
+      mode: 0600
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.1.9 | PATCH | Ensure permissions on /etc/gshadow- are configured"
+  file:
+      dest: /etc/gshadow-
+      owner: root
+      group: root
+      mode: 0600
+  become: true
+  become_user: root
+
+# SCORED | 6.1.10 | PATCH | Verify world-writable files and directories 
+- name: "SCORED | 6.1.10 | PATCH | Verify world-writable files and directories"
+  shell: "find {{item}} -perm -0002 -type d"
+  with_items:
+   - '/etc'
+   - '/bin'
+   - '/boot'
+   - '/usr'
+  register: wwf_output
+  become: true
+  become_user: root
+
+- debug:  msg="{{item.stdout_lines}}"
+  with_items: "{{wwf_output.results}}"
+  become: true
+  become_user: root
+
+#
+#- name: "SCORED | 6.1.11 | PATCH | Ensure no unowned files or directories exist"
+#  command: /bin/true
+#  changed_when: no
+#  become: true
+#  become_user: root
+#
+#- name: "SCORED | 6.1.12 | PATCH | Ensure no ungrouped files or directories exist"
+#  command: /bin/true
+#  changed_when: no
+#  become: true
+#  become_user: root
+#
+#- name: "NOTSCORED | 6.1.13 | PATCH | Audit SUID executables"
+#  command: /bin/true
+#  changed_when: no
+#  become: true
+#  become_user: root
+#
+#- name: "NOTSCORED | 6.1.14 | PATCH | Audit SGID executables"
+#  command: /bin/true
+#  changed_when: no
+#  become: true
+#  become_user: root
+
+# CIS 6.2.1 Ensure password fields are not empty (Scored)
+- name: 6.2.1 Ensure password fields are not empty (Scored)
+  command: awk -F':' '($2 == "" ) { print $1 }' /etc/shadow
+  register: awk_empty_shadow
+  changed_when: False
+  check_mode: no
+  failed_when: awk_empty_shadow.stdout != '' and lock_shadow_accounts == False
+  become: true
+  become_user: root
+- name: "SCORED | 6.2.1 | PATCH | Ensure password fields are not empty"
+  command: passwd -l {{ item }}
+  changed_when: no
+  failed_when: no
+  with_items: "{{ awk_empty_shadow.stdout_lines }}"
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.2.2 | PATCH | Ensure no legacy '+' entries exist in /etc/passwd"
+  command: sed -i '/^+/ d' /etc/passwd
+  changed_when: no
+  failed_when: no
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.2.3 | PATCH | Ensure no legacy '+' entries exist in /etc/shadow"
+  command: sed -i '/^+/ d' /etc/shadow
+  changed_when: no
+  failed_when: no
+  become: true
+  become_user: root
+
+- name: "SCORED | 6.2.4 | PATCH | Ensure no legacy '+' entries exist in /etc/group"
+  command: sed -i '/^+/ d' /etc/group
+  changed_when: no
+  failed_when: no
+  become: true
+  become_user: root
+
+
+# CIS 6.2.5 Ensure root is the only UID 0 account (Scored)
+- name: 6.2.5 Ensure root is the only UID 0 account (Scored)
+  command: awk -F':' '($3 == 0) { print $1 }' /etc/passwd
+  register: uid_zero_root
+  changed_when: False
+  failed_when: uid_zero_root.stdout != 'root'
+  become: true
+  become_user: root
+
+# CIS 6.2.6 Ensure root PATH Integrity (Scored)
+- copy:
+    src: scripts/6.2.6.sh
+    dest: /opt/6.2.6.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.6 Ensure root PATH Integrity (Scored)
+  shell: /opt/6.2.6.sh
+  register: root_path_integrity
+  become: true
+  become_user: root
+
+- debug: var=root_path_integrity.stdout_lines
+
+- file:
+    path: /opt/6.2.6.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.7 Ensure all users' home directories exist (Scored)
+- copy:
+    src: scripts/6.2.7.sh
+    dest: /opt/6.2.7.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.7 Ensure all users' home directories exist (Scored)
+  shell: /opt/6.2.7.sh
+  register: home_directories_exist
+  become: true
+  become_user: root
+
+- debug: var=home_directories_exist.stdout_lines
+
+- file:
+    path: /opt/6.2.7.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.8 Ensure users' home directories permissions are 750 or more restrictive (Scored)
+- copy:
+    src: scripts/6.2.8.sh
+    dest: /opt/6.2.8.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.8 Ensure users' home directories permissions are 750 or more restrictive (Scored)
+  shell: /opt/6.2.8.sh
+  register: home_directories_permissions
+  when: modify_user_homes == True
+  become: true
+  become_user: root
+
+- debug: var=home_directories_permissions.stdout_lines
+
+- file:
+    path: /opt/6.2.8.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.9 Ensure users own their home directories (Scored)
+- copy:
+    src: scripts/6.2.9.sh
+    dest: /opt/6.2.9.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.9 Ensure users own their home directories (Scored)
+  shell: /opt/6.2.9.sh
+  register: home_directories_own
+  become: true
+  become_user: root
+
+- debug: var=home_directories_own.stdout_lines
+
+- file:
+    path: /opt/6.2.9.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.10 Ensure users' dot files are not group or world writable (Scored)
+- copy:
+    src: scripts/6.2.10.sh
+    dest: /opt/6.2.10.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.10 Ensure users' dot files are not group or world writable (Scored)
+  shell: /opt/6.2.10.sh
+  register: user_dot_files
+  become: true
+  become_user: root
+
+- debug: var=user_dot_files.stdout_lines
+
+- file:
+    path: /opt/6.2.10.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.11 Ensure no users have .forward files (Scored)
+- copy:
+    src: scripts/6.2.11.sh
+    dest: /opt/6.2.11.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.11 Ensure no users have .forward files (Scored)
+  shell: /opt/6.2.11.sh
+  register: user_forward_files
+  become: true
+  become_user: root
+
+- debug: var=user_forward_files.stdout_lines
+
+- file:
+    path: /opt/6.2.11.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.12 Ensure no users have .netrc files (Scored)
+- copy:
+    src: scripts/6.2.12.sh
+    dest: /opt/6.2.12.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.12 Ensure no users have .netrc files (Scored)
+  shell: /opt/6.2.12.sh
+  register: user_netrc_files
+  become: true
+  become_user: root
+
+- debug: var=user_netrc_files.stdout_lines
+
+- file:
+    path: /opt/6.2.12.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.13 Ensure users' .netrc Files are not group or world accessible (Scored)
+- copy:
+    src: scripts/6.2.13.sh
+    dest: /opt/6.2.13.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.13 Ensure users' .netrc Files are not group or world accessible (Scored)
+  shell: /opt/6.2.13.sh
+  register: user_netrc_files_permissions
+  become: true
+  become_user: root
+
+- debug: var=user_netrc_files_permissions.stdout_lines
+
+- file:
+    path: /opt/6.2.13.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.14 Ensure no users have .rhosts files (Scored)
+- copy:
+    src: scripts/6.2.14.sh
+    dest: /opt/6.2.14.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.14 Ensure no users have .rhosts files (Scored)
+  shell: /opt/6.2.14.sh
+  register: user_rhosts_files
+  become: true
+  become_user: root
+
+- debug: var=user_rhosts_files.stdout_lines
+
+- file:
+    path: /opt/6.2.14.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.15 Ensure all groups in /etc/passwd exist in /etc/group (Scored)
+- copy:
+    src: scripts/6.2.15.sh
+    dest: /opt/6.2.15.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.15 Ensure all groups in /etc/passwd exist in /etc/group (Scored)
+  shell: /opt/6.2.15.sh
+  register: check_groups_in_passwd
+  become: true
+  become_user: root
+
+- debug: var=check_groups_in_passwd.stdout_lines
+
+- file:
+    path: /opt/6.2.15.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.16 Ensure no duplicate UIDs exist (Scored)
+- copy:
+    src: scripts/6.2.16.sh
+    dest: /opt/6.2.16.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.16 Ensure no duplicate UIDs exist (Scored)
+  shell: /opt/6.2.16.sh
+  register: duplicate_uids
+  become: true
+  become_user: root
+
+- debug: var=duplicate_uids.stdout_lines
+
+- file:
+    path: /opt/6.2.16.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.17 Ensure no duplicate GIDs exist (Scored)
+- copy:
+    src: scripts/6.2.17.sh
+    dest: /opt/6.2.17.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.17 Ensure no duplicate GIDs exist (Scored)
+  shell: /opt/6.2.17.sh
+  register: duplicate_gids
+  become: true
+  become_user: root
+
+- debug: var=duplicate_gids.stdout_lines
+
+- file:
+    path: /opt/6.2.17.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.18 Ensure no duplicate user names exist (Scored)
+- copy:
+    src: scripts/6.2.18.sh
+    dest: /opt/6.2.18.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.18 Ensure no duplicate user names exist (Scored)
+  shell: /opt/6.2.18.sh
+  register: duplicate_users
+  become: true
+  become_user: root
+
+- debug: var=duplicate_users.stdout_lines
+
+- file:
+    path: /opt/6.2.18.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.19 Ensure no duplicate group names exist (Scored)
+- copy:
+    src: scripts/6.2.19.sh
+    dest: /opt/6.2.19.sh
+    owner: root
+    group: root
+    mode: 0700
+  become: true
+  become_user: root
+
+- name: 6.2.19 Ensure no duplicate group names exist (Scored)
+  shell: /opt/6.2.19.sh
+  register: duplicate_groups1d
+  become: true
+  become_user: root
+
+- debug: var=duplicate_groups.stdout_lines
+
+- file:
+    path: /opt/6.2.19.sh
+    owner: root
+    group: root
+    state: absent
+  become: true
+  become_user: root
+
+# CIS 6.2.20 Ensure shadow group is empty (Scored)
+- name: 6.2.20 Ensure shadow group is empty (Scored)
+  shell: grep '^shadow' /etc/group | cut -f4 -d':'
+  register: shadow_group_empty
+  failed_when: shadow_group_empty.stdout != ''
+  become: true
+  become_user: root

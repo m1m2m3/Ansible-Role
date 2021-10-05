@@ -1,0 +1,11 @@
+---
+# tasks file for set_custom_fact
+- block:
+    - name: create a fact directory
+      file:
+        path: /etc/ansible/facts.d/
+        state: directory
+    - template: 
+        src: gold_image.fact.j2
+        dest: /etc/ansible/facts.d/gold_image.fact
+  when: vm_name is defined 

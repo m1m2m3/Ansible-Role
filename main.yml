@@ -1,0 +1,38 @@
+---
+ - hosts: all
+   become: true
+   vars: 
+     tags_list: install
+   tasks: 
+    - name: set custom fact file 
+      include_role:
+        name: set_custom_fact
+
+    - name: perform cis hardening
+      include_role:
+        name: cis_hardening
+
+    - name: find all agent installation roles available
+      find:
+        file_type: directory
+        paths: "{{playbook_dir}}/roles/"  #"./roles" # can be checked in windows or linux both directory
+        patterns: "agent_*"
+        use_regex: yes
+      connection: local  
+      register: list
+      
+    - name: include role for specific agent
+      include_role:
+        name: "{{item.path.split('/')[-1]}}"
+      #when: not (env_input in ['lab_new'] and item.path.split('/')[-1] in ['agent_crowdstrike'])  
+      with_items: 
+        - "{{ list.files }}" 
+      vars:
+        os: "{{os_input}}" # will have to remove later (both 'os' and 'env') after making changes in crowdstrike repo requirements
+        env: "{{env_input}}"
+
+    - name: include role to reset ip settings back to dhcp before to convert vm back to image
+      include_role:
+        name: reset_ip
+      when: 'network_for_vm is defined and network_for_vm == "static"' 
+         

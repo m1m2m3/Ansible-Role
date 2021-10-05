@@ -1,0 +1,13 @@
+---
+# tasks file for reset_ip
+  - name: "reset content of /etc/sysconfig/network-scripts/ifcfg-ens192"
+    copy:
+      dest: "/etc/sysconfig/network-scripts/ifcfg-ens192"
+      content: |
+        DEVICE=ens192
+        BOOTPROTO=dhcp
+        ONBOOT=yes
+  - name: "reset content of /etc/resolv.conf" 
+    copy:
+      dest: "/etc/resolv.conf"
+      content:  ""  

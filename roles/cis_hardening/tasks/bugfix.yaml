@@ -1,0 +1,10 @@
+# https://access.redhat.com/solutions/3025421 
+---
+- name: "RHEL Bug| PATCH|"
+  lineinfile:
+      dest: /etc/audit/auditd.conf
+      regexp: "^disp_qos"
+      line: "disp_qos = lossless"
+      state: present
+  become: true
+  become_user: root 

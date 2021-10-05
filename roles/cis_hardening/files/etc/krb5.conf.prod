@@ -1,0 +1,16 @@
+[logging]
+ default = FILE:/var/log/krb5libs.log
+
+[libdefaults]
+ default_realm = EPPC.PROD.LOCAL
+ dns_lookup_kdc = false
+ ticket_lifetime = 1h
+ renew_lifetime = 1h
+ rdns = false
+ forwardable = yes
+
+[realms]
+ EDPC.VANTIV.COM = {
+  kdc = pwfloeppcdc001.eppc.prod.local
+  admin_server = pwfloeppcdc001.eppc.prod.local
+ }

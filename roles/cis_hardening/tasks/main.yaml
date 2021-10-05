@@ -1,0 +1,11 @@
+---
+- include: add_ansible_user.yaml
+- include: add_qualys_user.yaml
+- include: cis_hardening_section_1.yaml
+- include: cis_hardening_section_2.yaml
+- include: cis_hardening_section_3.yaml
+- include: cis_hardening_section_4.yaml
+- include: cis_hardening_section_5.yaml
+- include: cis_hardening_section_6.yaml
+- include: bugfix.yaml
+- include: extras.yaml

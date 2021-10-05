@@ -1,0 +1,451 @@
+- name: "NOTSCORED | 4.1.1.1 | PATCH | Ensure audit log storage size is configured"
+  lineinfile:
+      dest: /etc/audit/auditd.conf
+      regexp: "^max_log_file( |=)"
+      line: "max_log_file = 400"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.1.2 | PATCH | Ensure system is disabled when audit logs are full"
+  lineinfile:
+      dest: /etc/audit/auditd.conf
+      regexp: "^admin_space_left_action"
+      line: "admin_space_left_action = {{ rhel7cis_auditd['admin_space_left_action'] }}"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.1.3 | PATCH | Ensure audit logs are not automatically deleted"
+  lineinfile:
+      dest: /etc/audit/auditd.conf
+      regexp: "^max_log_file_action"
+      line: "max_log_file_action = {{ rhel7cis_auditd['max_log_file_action'] }}"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.2 | PATCH | Ensure auditd service is enabled"
+  service:
+      name: auditd
+      state: started
+      enabled: yes
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.3 | PATCH | Ensure auditing for processes that start prior to auditd is enabled"
+  replace:
+      dest: /etc/default/grub
+      regexp: '(^GRUB_CMDLINE_LINUX\s*\=\s*)(?:")(.+)(?<!audit=1)(?:")'
+      replace: '\1"\2 audit=1"'
+      follow: yes
+  ignore_errors: yes
+  notify: generate new grub config
+  become: true
+  become_user: root
+
+# CIS 4.1.4 Ensure events that modify date and time information are collected (Scored)
+- name: 4.1.4 Ensure events that modify date and time information are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change'
+    - '-a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change'
+    - '-a always,exit -F arch=b64 -S clock_settime -k time-change'
+    - '-a always,exit -F arch=b32 -S clock_settime -k time-change'
+    - '-w /etc/localtime -p wa -k time-change'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.5 Ensure events that modify user/group information are collected (Scored)
+- name: 4.1.5 Ensure events that modify user/group information are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-w /etc/group -p wa -k identity'
+    - '-w /etc/passwd -p wa -k identity'
+    - '-w /etc/gshadow -p wa -k identity'
+    - '-w /etc/shadow -p wa -k identity'
+    - '-w /etc/security/opasswd -p wa -k identity'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.6 Ensure events that modify the system's network environment are collected (Scored)
+- name: 4.1.6 Ensure events that modify the system's network environment are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-a exit,always -F arch=b32 -S sethostname -S setdomainname -k system-locale'
+    - '-a exit,always -F arch=b64 -S sethostname -S setdomainname -k system-locale'
+    - '-w /etc/issue -p wa -k system-locale'
+    - '-w /etc/issue.net -p wa -k system-locale'
+    - '-w /etc/hosts -p wa -k system-locale'
+    - '-w /etc/network -p wa -k system-locale'
+    - '-w /etc/networks -p wa -k system-locale'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.7 Ensure events that modify the system's Mandatory Access Controls are collected (Scored)
+- name: 4.1.7 Ensure events that modify the system's Mandatory Access Controls are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-w /etc/selinux/ -p wa -k MAC-policy'
+    - '-w /etc/apparmor/ -p wa -k MAC-policy'
+    - '-w /etc/apparmor.d/ -p wa -k MAC-policy'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.8 Ensure login and logout events are collected (Scored)
+- name: 4.1.8 Ensure login and logout events are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-w /var/log/faillog -p wa -k logins'
+    - '-w /var/log/lastlog -p wa -k logins'
+    - '-w /var/log/tallylog -p wa -k logins'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.9 Ensure session initiation information is collected (Scored)
+- name: 4.1.9 Ensure session initiation information is collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-w /var/run/utmp -p wa -k session'
+    - '-w /var/log/wtmp -p wa -k session'
+    - '-w /var/log/btmp -p wa -k session'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.10 Ensure discretionary access control permission modification events are collected (Scored)
+- name: 4.1.10 Ensure discretionary access control permission modification events are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+    - '-a always,exit -F arch=b32 -S chmod -S fchmod -S fchmodat -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+    - '-a always,exit -F arch=b64 -S chown -S fchown -S fchownat -S lchown -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+    - '-a always,exit -F arch=b32 -S chown -S fchown -S fchownat -S lchown -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+    - '-a always,exit -F arch=b64 -S setxattr -S lsetxattr -S fsetxattr -S removexattr -S lremovexattr -S fremovexattr -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+    - '-a always,exit -F arch=b32 -S setxattr -S lsetxattr -S fsetxattr -S removexattr -S lremovexattr -S fremovexattr -F auid>=1000 -F auid!=4294967295 -k perm_mod'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.11 Ensure unsuccessful unauthorized file access attempts are collected (Scored)
+- name: 4.1.11 Ensure unsuccessful unauthorized file access attempts are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access'
+    - '-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access'
+    - '-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access'
+    - '-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+- shell: "find / -path /sys -prune -o -path /proc -prune -o -path /run -prune -o \\( -perm -4000 -o -perm -2000 \\) -type f|egrep -v '/sys|/proc|/run'"
+  register: setuid_setgid_commands
+  changed_when: False
+  become: true
+  become_user: root
+
+# CIS 4.1.12 Ensure use of privileged commands is collected (Scored)
+- name: 4.1.12 Ensure use of privileged commands is collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: '-a always,exit -F path={{item}} -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged'
+    state: present
+    create: yes
+  with_items: "{{ setuid_setgid_commands.stdout_lines }}"
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.13 | PATCH | Ensure successful file system mounts are collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.13 | PATCH | Ensure successful file system mounts are collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.13 | PATCH | Ensure successful file system mounts are collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts"
+      state: present
+  become: true
+  become_user: root
+
+# CIS 4.1.14 Ensure file deletion events by users are collected (Scored)
+- name: 4.1.14 Ensure file deletion events by users are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete'
+    - '-a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.15 | PATCH | Ensure changes to system administration scope (sudoers) is collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-w /etc/sudoers -p wa -k scope"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.15 | PATCH | Ensure changes to system administration scope (sudoers) is collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-w /etc/sudoers -p wa -k scope"
+      state: present
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.1.15 | PATCH | Ensure changes to system administration scope (sudoers) is collected"
+  lineinfile:
+      dest: /etc/audit/rules.d/cis.rules
+      line: "-w /etc/sudoers.d -p wa -k scope"
+      state: present
+  become: true
+  become_user: root
+
+# CIS 4.1.16 Ensure system administrator actions (sudolog) are collected (Scored)
+- name: 4.1.16 Ensure system administrator actions (sudolog) are collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: '-w /var/log/sudo.log -p wa -k actions'
+    state: present
+    create: yes
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.17 Ensure kernel module loading and unloading is collected (Scored)
+- name: 4.1.17 Ensure kernel module loading and unloading is collected (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: ' {{ item }} '
+    state: present
+    create: yes
+  with_items:
+    - '-w /sbin/insmod -p x -k modules'
+    - '-w /sbin/rmmod -p x -k modules'
+    - '-w /sbin/modprobe -p x -k modules'
+    - '-a always,exit -F arch=b64 -S init_module -S delete_module -k modules'
+  when: enable_auditd == True
+  notify: restart auditd
+  become: true
+  become_user: root
+
+# CIS 4.1.18 Ensure the audit configuration is immutable (Scored)
+- name: 4.1.18 Ensure the audit configuration is immutable (Scored)
+  lineinfile:
+    dest: /etc/audit/rules.d/cis.rules
+    line: '-e 2'
+    state: present
+    create: yes
+    insertafter: EOF
+  when: enable_auditd == True
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.2.3 | PATCH | Ensure rsyslog or syslog-ng is installed"
+  yum:
+      name: "{{ rhel7cis_syslog }}"
+      state: present
+  become: true
+  become_user: root
+
+# CIS 4.2.1 Ensure rsyslog or syslog-ng is installed (Scored)
+- name: 4.2.1 Ensure rsyslog or syslog-ng is installed (Scored)
+  service:
+    name: rsyslog
+    state: started
+    enabled: yes
+  when: syslog_package == "rsyslog"
+  become: true
+  become_user: root
+
+# CIS 4.2.1.2 Ensure logging is configured (Not Scored)
+- name: 4.2.1.2 Ensure logging is configured (Not Scored)
+  lineinfile:
+      dest: /etc/rsyslog.conf
+      line: '{{ item }}'
+      insertafter: EOF
+  with_items:
+    - '*.emerg :omusrmsg:*'
+    - 'mail.* -/var/log/mail'
+    - 'mail.info -/var/log/mail.info'
+    - 'mail.warning -/var/log/mail.warn'
+    - 'mail.err /var/log/mail.err'
+    - 'news.crit -/var/log/news/news.crit'
+    - 'news.err -/var/log/news/news.err'
+    - 'news.notice -/var/log/news/news.notice'
+    - '*.=warning;*.=err -/var/log/warn'
+    - '*.crit /var/log/warn'
+    - '*.*;mail.none;news.none -/var/log/messages'
+    - 'local0,local1.* -/var/log/localmessages'
+    - 'local2,local3.* -/var/log/localmessages'
+    - 'local4,local5.* -/var/log/localmessages'
+    - 'local6,local7.* -/var/log/localmessages'
+  notify: restart rsyslog
+  when: syslog_package == "rsyslog"
+  become: true
+  become_user: root
+
+- command: find /etc/rsyslog.d -type f
+  register: rsyslog_files
+  changed_when: False
+  become: true
+  become_user: root
+
+- command: grep ^\\$FileCreateMode {{ item }}
+  with_items:
+    - '/etc/rsyslog.conf'
+    - '{{ rsyslog_files.stdout_lines }}'
+  register: filecreate_exists
+  ignore_errors: True
+  notify: restart rsyslog
+  when: syslog_package == "rsyslog"
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.2.1.3 | PATCH | Ensure rsyslog default file permissions configured"
+  lineinfile:
+      dest: /etc/rsyslog.conf
+      regexp: '^\$FileCreateMode'
+      line: '$FileCreateMode 0640'
+  become: true
+  become_user: root
+
+# CIS 4.2.1.4 Ensure rsyslog is configured to send logs to a remote log host (Scored)
+- command: grep "^*.*[^I][^I]*@" /etc/rsyslog.conf
+  register: remoteloghost
+  changed_when: False
+  failed_when: False
+  check_mode: no
+  become: true
+  become_user: root
+
+
+### Ryslog server addrss is being supplied as extra vars (from packer)
+#- name: 4.2.1.4 Ensure rsyslog is configured to send logs to a remote log host (Scored)
+#  lineinfile:
+#    dest: /etc/rsyslog.conf
+#    line: '*.* @@{{rsyslog_server_address}}'
+#    insertafter: EOF
+#    state: present
+#  notify: restart rsyslog
+#  become: true
+#  become_user: root
+
+# CIS 4.2.1.5 Ensure remote rsyslog messages are only accepted on designated log hosts. (Not Scored)
+- command: grep '^$ModLoad imtcp' /etc/rsyslog.conf
+  register: moadloadpresent
+  failed_when: False
+  check_mode: no
+  become: true
+  become_user: root
+
+- name: 4.2.1.5 Ensure remote rsyslog messages are only accepted on designated log hosts. (Not Scored)
+  lineinfile:
+    dest: /etc/rsyslog.conf
+    regexp: '^#({{ item }})'
+    line: '{{ item }}'
+    state: present
+  with_items:
+      - '$ModLoad imtcp'
+      - '$InputTCPServerRun 514'
+  notify: restart rsyslog
+  become: true
+  become_user: root
+
+- name: "SCORED | 4.2.4 | PATCH | Ensure permissions on all logfiles are configured"
+  command: find /var/log -type f -exec chmod g-wx,o-rwx {} +
+  changed_when: no
+  failed_when: no
+  become: true
+  become_user: root
+  
+# CIS 4.3 Ensure logrotate is configured (Not Scored)  
+- name: "NOTSCORED | 4.3 | PATCH | Ensure logrotate is configured"
+  find:
+    paths: /etc/logrotate.d/
+  register: log_rotates
+- name: "NOTSCORED | 4.3 | PATCH | Ensure logrotate is configured"
+  replace:
+    path: "{{ item.path }}"
+    regexp: '^(\s*)(daily|weekly|monthly|yearly)$'
+    replace: "\\1{{ rhel7cis_logrotate }}"
+  with_items:
+    - "{{ log_rotates.files }}"
+    - { path: "/etc/logrotate.conf" }
+    
+    
+
+
+- name: 4.3 Ensure logrotate is configured (Not Scored)
+  file:
+    name: "{{ item }}"
+  with_items:
+    - '/etc/logrotate.conf'
+  become: true
+  become_user: root
